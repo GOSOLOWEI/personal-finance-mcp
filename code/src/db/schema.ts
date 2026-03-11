@@ -67,7 +67,7 @@ export const categories = pgTable(
       .references(() => users.id),
     name: varchar('name', { length: 30 }).notNull(),
     type: varchar('type', { length: 10 }).notNull(), // income | expense
-    parentId: uuid('parent_id').references((): ReturnType<typeof uuid> => categories.id),
+    parentId: uuid('parent_id').references((): any => categories.id),
     groupLabel: varchar('group_label', { length: 50 }),
     icon: varchar('icon', { length: 10 }),
     color: varchar('color', { length: 7 }),

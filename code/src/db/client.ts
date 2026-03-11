@@ -13,7 +13,6 @@ const poolMax = parseInt(process.env.DB_POOL_MAX ?? '10', 10);
 const connectTimeout = parseInt(process.env.DB_CONNECT_TIMEOUT ?? '10000', 10);
 
 const sql = postgres(connectionString, {
-  min: poolMin,
   max: poolMax,
   connect_timeout: connectTimeout / 1000,
   idle_timeout: 30,

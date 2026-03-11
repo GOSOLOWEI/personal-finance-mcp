@@ -1,0 +1,186 @@
+# ==================== 通用基础忽略 ====================
+# 操作系统相关文件
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ==================== 编辑器/IDE 配置 ====================
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.code-workspace
+
+# IntelliJ IDEA / WebStorm / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+build/
+.gradle/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+tmp/
+.metadata
+*.tmp
+*.bak
+*.swp
+*.jar
+*.war
+*.ear
+
+# Vim
+*.swp
+*.swo
+.*.sw?
+.un~
+Session.vim
+.netrwhist
+autoload/
+
+# ==================== 编程语言/框架相关 ====================
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+.eggs/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg
+*.whl
+pip-wheel-metadata/
+*.manifest
+*.spec
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+.pytest/
+
+# JavaScript / Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+dist/
+build/
+coverage/
+*.local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+*.tgz
+.vite/
+*.tsbuildinfo
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+target/
+*.jcov
+*.jprofile
+*.hprof
+
+# ==================== 构建/打包相关 ====================
+# 压缩包
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.xz
+*.bz2
+
+# 构建产物
+dist/
+build/
+out/
+release/
+target/
+bin/
+obj/
+
+# ==================== 日志/临时文件 ====================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+.cache/
+.tmp/
+.temp/
+logs/
