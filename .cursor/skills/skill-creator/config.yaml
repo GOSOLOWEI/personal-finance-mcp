@@ -1,0 +1,16 @@
+name: "skill_name"
+version: "1.0.0"
+description: "技能描述"
+author: "作者"
+category: "分类"
+tags:
+  - "标签1"
+  - "标签2"
+
+dependencies:
+  - "dependency1"
+  - "dependency2"
+
+config:
+  param1: "value1"
+  param2: "value2"
