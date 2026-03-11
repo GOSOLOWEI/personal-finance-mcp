@@ -5,7 +5,7 @@ import { handleError } from '../../utils/errors.js';
 
 export const adjustAccountBalanceSchema = z.object({
   account_id: z.string().uuid().describe('账户 UUID'),
-  actual_balance: z.number().describe('实际余额（与银行账单对账后的正确余额）'),
+  actual_balance: z.coerce.number().describe('实际余额（与银行账单对账后的正确余额）'),
   note: z.string().max(200).optional().describe('校正原因说明'),
 });
 

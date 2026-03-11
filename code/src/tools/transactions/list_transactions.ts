@@ -11,8 +11,8 @@ export const listTransactionsSchema = z.object({
   type: z.enum(['income', 'expense', 'transfer', 'all']).default('all').describe('交易类型过滤'),
   category_id: z.string().uuid().optional(),
   account_id: z.string().uuid().optional(),
-  min_amount: z.number().positive().optional(),
-  max_amount: z.number().positive().optional(),
+  min_amount: z.coerce.number().positive().optional(),
+  max_amount: z.coerce.number().positive().optional(),
   keyword: z.string().max(100).optional().describe('备注关键词搜索'),
   tag_filter: z
     .object({

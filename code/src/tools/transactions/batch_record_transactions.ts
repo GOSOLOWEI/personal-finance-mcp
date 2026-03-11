@@ -5,7 +5,7 @@ import { handleError } from '../../utils/errors.js';
 
 const transactionItemSchema = z.object({
   type: z.enum(['income', 'expense', 'transfer']),
-  amount: z.number().positive().max(999999999),
+  amount: z.coerce.number().positive().max(999999999),
   category_id: z.string().uuid().optional(),
   account_id: z.string().uuid().optional(),
   occurred_at: z
@@ -15,13 +15,13 @@ const transactionItemSchema = z.object({
   note: z.string().max(500).optional(),
   tag_labels: z
     .object({
-      method: z.enum(['线上', '线下', '外卖']).optional(),
-      behavior: z.enum(['日常消费', '冲动消费']).optional(),
-      consumption_type: z.enum(['必选消费', '可选消费']).optional(),
-      scale: z.enum(['大额支出', '小额支出']).optional(),
-      purpose: z.enum(['生存必需', '发展提升', '享受休闲']).optional(),
+      method: z.enum(['线上', '线下', '外卖']).optional()
+        .describe('有明确信号时填写，否则留空'),
+      behavior: z.enum(['日常消费', '冲动消费']).optional()
+        .describe('仅冲动消费时填写，日常消费留空'),
     })
-    .optional(),
+    .optional()
+    .describe('情境标签（仅 expense 类型）；scale/consumption_type/purpose 由服务端自动计算，禁止传入'),
   source_text: z.string().optional().describe('对应的原始文本片段'),
 });
 

@@ -6,7 +6,7 @@ import { handleError } from '../../utils/errors.js';
 export const updateSubscriptionSchema = z.object({
   subscription_id: z.string().uuid().describe('订阅 UUID'),
   name: z.string().min(1).max(100).optional(),
-  amount: z.number().positive().optional(),
+  amount: z.coerce.number().positive().optional(),
   cycle: z.enum(['monthly', 'quarterly', 'yearly', 'weekly']).optional(),
   account_id: z.string().uuid().optional(),
   category_id: z.string().uuid().optional(),

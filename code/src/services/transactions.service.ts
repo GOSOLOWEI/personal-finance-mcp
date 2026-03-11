@@ -3,7 +3,7 @@ import { transactions, categories, accounts, budgets, auditLogs } from '../db/sc
 import { eq, and, isNull, sql, gte, lte, like, or, desc, asc, inArray } from 'drizzle-orm';
 import { FinanceError } from '../utils/errors.js';
 import { writeAuditLog } from '../utils/audit.js';
-import { formatAmount } from '../utils/response.js';
+import { formatAmount, formatDateTimeCST } from '../utils/response.js';
 
 export interface TagLabels {
   method?: string;
@@ -40,42 +40,30 @@ export interface RecordTransactionResult {
   suggested_tag_labels?: TagLabels;
 }
 
-// 消费类型规则映射
+// ─── 服务端确定性标签规则（基于分类和金额，结果唯一确定）────────────────────
 const NECESSARY_CATEGORIES = ['住房', '餐饮', '交通', '生活缴费', '医疗健康'];
 const OPTIONAL_CATEGORIES = ['休闲娱乐', '形象管理', '旅行', '人情社交', '兴趣爱好', '耐用消费品'];
 const SURVIVAL_CATEGORIES = ['住房', '医疗健康', '餐饮', '生活缴费'];
 const DEVELOPMENT_CATEGORIES = ['学习进修', '兴趣爱好'];
 const LEISURE_CATEGORIES = ['休闲娱乐', '旅行', '形象管理', '人情社交'];
 
-const ONLINE_KEYWORDS = ['淘宝', '京东', '拼多多', '美团', '饿了么', '线上', 'App', '扫码', '微信支付', '支付宝'];
-const OFFLINE_KEYWORDS = ['超市', '便利店', '门店', '收银', 'POS', '沃尔玛', '大润发'];
-const DELIVERY_KEYWORDS = ['外卖', '饿了么', '美团外卖', '配送', '叮咚'];
-
 /**
- * 基于规则推断建议标签
+ * 服务端确定性标签推断：scale / consumption_type / purpose
+ * 仅依赖金额和分类，结果确定、不受文本歧义影响
  */
-export function inferSuggestedTags(params: {
+function inferServerTags(params: {
   amount: number;
   categoryName?: string;
   parentCategoryName?: string;
-  note?: string;
-}): TagLabels {
-  const { amount, categoryName, parentCategoryName, note } = params;
-  const tags: TagLabels = {};
-  const noteText = note?.toLowerCase() ?? '';
+}): Pick<TagLabels, 'scale' | 'consumption_type' | 'purpose'> {
+  const { amount, categoryName, parentCategoryName } = params;
+  const tags: Pick<TagLabels, 'scale' | 'consumption_type' | 'purpose'> = {};
   const topCategory = parentCategoryName ?? categoryName ?? '';
 
-  // 金额规模
+  // 金额规模：仅在大额时标记，小额为默认状态不写入
   const threshold = parseFloat(process.env.LARGE_EXPENSE_THRESHOLD ?? '500');
-  tags.scale = amount >= threshold ? '大额支出' : '小额支出';
-
-  // 消费方式（关键词匹配）
-  if (DELIVERY_KEYWORDS.some((kw) => noteText.includes(kw) || (categoryName ?? '').includes(kw))) {
-    tags.method = '外卖';
-  } else if (ONLINE_KEYWORDS.some((kw) => noteText.includes(kw))) {
-    tags.method = '线上';
-  } else if (OFFLINE_KEYWORDS.some((kw) => noteText.includes(kw))) {
-    tags.method = '线下';
+  if (amount >= threshold) {
+    tags.scale = '大额支出';
   }
 
   // 消费类型
@@ -95,6 +83,34 @@ export function inferSuggestedTags(params: {
   }
 
   return tags;
+}
+
+/**
+ * 合并标签：服务端确定性字段（scale/consumption_type/purpose）+ AI 情境字段（method/behavior）
+ * 服务端字段始终覆盖 AI 传入的同名字段，防止 AI 误写确定性维度
+ */
+export function mergeTagLabels(
+  aiTags: Pick<TagLabels, 'method' | 'behavior'> | null | undefined,
+  serverTags: Pick<TagLabels, 'scale' | 'consumption_type' | 'purpose'>
+): TagLabels {
+  const merged: TagLabels = {};
+  if (aiTags?.method) merged.method = aiTags.method;
+  if (aiTags?.behavior) merged.behavior = aiTags.behavior;
+  if (serverTags.scale) merged.scale = serverTags.scale;
+  if (serverTags.consumption_type) merged.consumption_type = serverTags.consumption_type;
+  if (serverTags.purpose) merged.purpose = serverTags.purpose;
+  return merged;
+}
+
+/**
+ * @deprecated 仅供 batch_record_transactions dry_run 模式兼容调用，不用于正式写库
+ */
+export function inferSuggestedTags(params: {
+  amount: number;
+  categoryName?: string;
+  parentCategoryName?: string;
+}): TagLabels {
+  return inferServerTags(params);
 }
 
 /**
@@ -163,6 +179,37 @@ export async function recordTransaction(
     throw new FinanceError('INVALID_TRANSFER', '转账类型必须提供目标账户 to_account_id');
   }
 
+  // expense 类型：预先查询分类信息用于标签推断
+  let categoryName: string | undefined;
+  let parentCategoryName: string | undefined;
+
+  if (type === 'expense' && categoryId) {
+    const [cat] = await db
+      .select({ name: categories.name, parentId: categories.parentId })
+      .from(categories)
+      .where(eq(categories.id, categoryId))
+      .limit(1);
+    categoryName = cat?.name;
+    if (cat?.parentId) {
+      const [parent] = await db
+        .select({ name: categories.name })
+        .from(categories)
+        .where(eq(categories.id, cat.parentId))
+        .limit(1);
+      parentCategoryName = parent?.name;
+    }
+  }
+
+  // 分层标签合并：
+  // - 服务端计算 scale/consumption_type/purpose（确定性，基于金额和分类）
+  // - AI 提供 method/behavior（情境性，无明确信号时应留空）
+  // - 服务端字段始终覆盖 AI 传入的同名字段
+  let effectiveTagLabels: TagLabels | null = null;
+  if (type === 'expense') {
+    const serverTags = inferServerTags({ amount, categoryName, parentCategoryName });
+    effectiveTagLabels = mergeTagLabels(tagLabels ?? null, serverTags);
+  }
+
   const occurredDate = occurredAt ? new Date(occurredAt) : new Date();
 
   const [tx] = await db
@@ -176,7 +223,7 @@ export async function recordTransaction(
       toAccountId: toAccountId ?? null,
       occurredAt: occurredDate,
       note: note ?? null,
-      tagLabels: tagLabels ?? null,
+      tagLabels: effectiveTagLabels,
       sourceText: sourceText ?? null,
     })
     .returning({ id: transactions.id });
@@ -244,33 +291,9 @@ export async function recordTransaction(
     }
   }
 
-  // 推断标签建议（仅 expense 类型）
-  if (type === 'expense' && categoryId) {
-    const [cat] = await db
-      .select({
-        name: categories.name,
-        parentId: categories.parentId,
-      })
-      .from(categories)
-      .where(eq(categories.id, categoryId))
-      .limit(1);
-
-    let parentName: string | undefined;
-    if (cat?.parentId) {
-      const [parent] = await db
-        .select({ name: categories.name })
-        .from(categories)
-        .where(eq(categories.id, cat.parentId))
-        .limit(1);
-      parentName = parent?.name;
-    }
-
-    result.suggested_tag_labels = inferSuggestedTags({
-      amount,
-      categoryName: cat?.name,
-      parentCategoryName: parentName,
-      note,
-    });
+  // 将最终写库的标签回传给调用方（供展示用）
+  if (effectiveTagLabels && Object.keys(effectiveTagLabels).length > 0) {
+    result.suggested_tag_labels = effectiveTagLabels;
   }
 
   return result;
@@ -438,8 +461,16 @@ export async function listTransactions(params: ListTransactionsParams) {
         .orderBy(desc(auditLogs.createdAt));
     }
 
+    const formattedTx = {
+      ...tx,
+      occurred_at: formatDateTimeCST(tx.occurredAt),
+      created_at: formatDateTimeCST(tx.createdAt),
+      updated_at: formatDateTimeCST(tx.updatedAt),
+      history: includeHistory ? history : undefined,
+    };
+
     return {
-      items: [{ ...tx, history: includeHistory ? history : undefined }],
+      items: [formattedTx],
       pagination: { page: 1, page_size: 1, total: 1, total_pages: 1 },
       summary: { total_income: 0, total_expense: 0 },
     };
@@ -518,8 +549,15 @@ export async function listTransactions(params: ListTransactionsParams) {
     OFFSET ${offset}
   `) as Array<{ total_income: string; total_expense: string }>;
 
+  const formattedItems = items.map((item) => ({
+    ...item,
+    occurred_at: formatDateTimeCST(item.occurredAt),
+    created_at: formatDateTimeCST(item.createdAt),
+    updated_at: formatDateTimeCST(item.updatedAt),
+  }));
+
   return {
-    items,
+    items: formattedItems,
     pagination: {
       page,
       page_size: pageSize,

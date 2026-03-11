@@ -33,9 +33,9 @@ export const recordInvestmentTransactionSchema = z.object({
   type: z.enum(['buy', 'sell', 'dividend', 'fee']),
   asset_name: z.string().min(1).max(100),
   asset_code: z.string().max(20).optional(),
-  quantity: z.number().positive().optional(),
-  price: z.number().positive().optional(),
-  amount: z.number().positive().describe('总金额（必填）'),
+  quantity: z.coerce.number().positive().optional(),
+  price: z.coerce.number().positive().optional(),
+  amount: z.coerce.number().positive().describe('总金额（必填）'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   note: z.string().max(500).optional(),
 });
@@ -79,7 +79,7 @@ export async function listInvestmentHoldingsTool(input: z.infer<typeof listInves
 // ─── update_investment_valuation ─────────────────────────────────────────────
 export const updateInvestmentValuationSchema = z.object({
   account_id: z.string().uuid(),
-  current_value: z.number().min(0),
+  current_value: z.coerce.number().min(0),
   valuation_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 

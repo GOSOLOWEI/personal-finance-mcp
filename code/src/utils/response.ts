@@ -49,3 +49,22 @@ export function formatAmount(value: string | null | undefined): number {
   if (value == null) return 0;
   return parseFloat(parseFloat(value).toFixed(2));
 }
+
+/**
+ * 将 UTC 时间转换为北京时间字符串（Asia/Shanghai，格式：YYYY-MM-DD HH:mm:ss）
+ */
+export function formatDateTimeCST(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).replace(/\//g, '-');
+}

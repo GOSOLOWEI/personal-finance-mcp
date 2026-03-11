@@ -8,7 +8,7 @@ export const recordAccountSchema = z.object({
   type: z
     .enum(['checking', 'savings', 'alipay', 'wechat', 'credit_card', 'investment', 'cash', 'other'])
     .describe('账户类型'),
-  initial_balance: z.number().min(0).default(0).describe('初始余额，默认 0'),
+  initial_balance: z.coerce.number().min(0).default(0).describe('初始余额，默认 0'),
   currency: z.string().max(10).default('CNY').describe('货币代码，默认 CNY'),
   note: z.string().max(200).optional().describe('备注，最长 200 字符'),
 });

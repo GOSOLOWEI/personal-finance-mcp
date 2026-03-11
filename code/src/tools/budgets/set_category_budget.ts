@@ -5,14 +5,14 @@ import { handleError } from '../../utils/errors.js';
 
 export const setCategoryBudgetSchema = z.object({
   category_id: z.string().uuid().describe('分类 UUID'),
-  amount: z.number().positive().describe('月度预算金额'),
+  amount: z.coerce.number().positive().describe('月度预算金额'),
   year_month: z
     .string()
     .regex(/^\d{4}-\d{2}$/)
     .optional()
     .describe('格式 "2026-03"，默认当月'),
   alert_threshold: z
-    .number()
+    .coerce.number()
     .int()
     .min(1)
     .max(100)

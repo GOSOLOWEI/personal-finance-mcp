@@ -406,6 +406,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const parsed = tool.schema.safeParse(args ?? {});
     if (!parsed.success) {
+      const flattened = parsed.error.flatten();
+      const fieldMessages = Object.entries(flattened.fieldErrors)
+        .map(([field, msgs]) => `「${field}」${(msgs as string[]).join('；')}`)
+        .join('，');
+      const formMessages = flattened.formErrors.length > 0 ? flattened.formErrors.join('；') : '';
+      const detailMessage = [fieldMessages, formMessages].filter(Boolean).join('；');
+
       return {
         content: [
           {
@@ -414,8 +421,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               success: false,
               error: {
                 code: 'VALIDATION_ERROR',
-                message: '参数校验失败',
-                details: parsed.error.flatten(),
+                message: `参数校验失败：${detailMessage}`,
+                details: flattened,
               },
             }),
           },
@@ -433,14 +440,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       ],
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const isSensitive = /password|host|connect|ECONNREFUSED/i.test(errMsg);
+    const message = isSensitive ? '数据库连接失败，请稍后重试' : `服务内部错误：${errMsg}`;
     return {
       content: [
         {
           type: 'text',
           text: JSON.stringify({
             success: false,
-            error: { code: 'INTERNAL_ERROR', message: '服务内部错误，请稍后重试' },
+            error: { code: isSensitive ? 'DATABASE_ERROR' : 'INTERNAL_ERROR', message },
           }),
         },
       ],

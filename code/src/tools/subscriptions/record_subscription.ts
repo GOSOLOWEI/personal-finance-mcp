@@ -5,7 +5,7 @@ import { handleError } from '../../utils/errors.js';
 
 export const recordSubscriptionSchema = z.object({
   name: z.string().min(1).max(100).describe('订阅名称，如「Netflix」「ChatGPT Plus」'),
-  amount: z.number().positive().describe('每期扣费金额'),
+  amount: z.coerce.number().positive().describe('每期扣费金额'),
   cycle: z.enum(['monthly', 'quarterly', 'yearly', 'weekly']).describe('扣费周期'),
   account_id: z.string().uuid().describe('扣费账户 UUID'),
   category_id: z.string().uuid().optional().describe('关联分类（如「通讯/软件订阅」）'),

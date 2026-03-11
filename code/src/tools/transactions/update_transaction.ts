@@ -5,7 +5,7 @@ import { handleError } from '../../utils/errors.js';
 
 export const updateTransactionSchema = z.object({
   transaction_id: z.string().uuid().describe('交易 UUID'),
-  amount: z.number().positive().max(999999999).optional(),
+  amount: z.coerce.number().positive().max(999999999).optional(),
   category_id: z.string().uuid().optional(),
   account_id: z.string().uuid().optional(),
   occurred_at: z
@@ -23,7 +23,7 @@ export const updateTransactionSchema = z.object({
       purpose: z.string().nullable().optional(),
     })
     .optional()
-    .describe('传入则整体覆盖，null 值表示清除该维度'),
+    .describe('手动修正标签时使用，传入则整体覆盖，null 值表示清除该维度。通常只需修正 method/behavior，其余字段由系统自动维护'),
 });
 
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
