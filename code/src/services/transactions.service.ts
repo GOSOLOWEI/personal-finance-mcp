@@ -445,10 +445,11 @@ export async function listTransactions(params: ListTransactionsParams) {
     };
   }
 
-  // 构建过滤条件
+  // 构建过滤条件（默认排除系统自动生成的余额调整交易）
   const conditions = [
     eq(transactions.userId, userId),
     isNull(transactions.deletedAt),
+    eq(transactions.isSystem, false),
   ];
 
   if (type && type !== 'all') conditions.push(eq(transactions.type, type));

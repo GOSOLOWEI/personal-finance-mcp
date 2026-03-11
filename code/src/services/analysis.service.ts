@@ -67,6 +67,7 @@ export async function analyzeMonthlySummary(params: {
   const conditions = [
     sql`t.user_id = ${userId}`,
     sql`t.deleted_at IS NULL`,
+    sql`t.is_system = false`,
     sql`TO_CHAR(t.occurred_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM') = ${yearMonth}`,
   ];
 
@@ -112,6 +113,7 @@ export async function analyzeMonthlySummary(params: {
     FROM transactions
     WHERE user_id = ${userId}
       AND deleted_at IS NULL
+      AND is_system = false
       AND TO_CHAR(occurred_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM') = ${prevMonth}
       ${accountId ? sql`AND account_id = ${accountId}` : sql``}
   `) as Array<{ prev_income: string; prev_expense: string }>;
@@ -162,6 +164,7 @@ export async function analyzeYearlySummary(params: { userId: string; year?: numb
     FROM transactions
     WHERE user_id = ${userId}
       AND deleted_at IS NULL
+      AND is_system = false
       AND TO_CHAR(occurred_at AT TIME ZONE 'Asia/Shanghai', 'YYYY') = ${yearStr}
     GROUP BY year_month
     ORDER BY year_month
@@ -176,6 +179,7 @@ export async function analyzeYearlySummary(params: { userId: string; year?: numb
     LEFT JOIN categories p ON p.id = c.parent_id
     WHERE t.user_id = ${userId}
       AND t.deleted_at IS NULL
+      AND t.is_system = false
       AND t.type = 'expense'
       AND TO_CHAR(t.occurred_at AT TIME ZONE 'Asia/Shanghai', 'YYYY') = ${yearStr}
     GROUP BY COALESCE(p.name, c.name)
@@ -228,6 +232,7 @@ export async function analyzeCategoryTrend(params: {
     JOIN categories c ON c.id = t.category_id
     WHERE t.user_id = ${userId}
       AND t.deleted_at IS NULL
+      AND t.is_system = false
       AND t.type = 'expense'
       AND (t.category_id = ${categoryId} OR c.parent_id = ${categoryId})
       AND TO_CHAR(t.occurred_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM') >= ${startMonth}
@@ -265,6 +270,7 @@ export async function analyzeTopExpenses(params: {
   const conditions = [
     sql`t.user_id = ${userId}`,
     sql`t.deleted_at IS NULL`,
+    sql`t.is_system = false`,
     sql`t.type = 'expense'`,
   ];
 
@@ -336,6 +342,7 @@ export async function analyzeCashFlow(params: {
     FROM transactions
     WHERE user_id = ${userId}
       AND deleted_at IS NULL
+      AND is_system = false
       AND TO_CHAR(occurred_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM') >= ${startMonth}
       AND TO_CHAR(occurred_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM') <= ${endMonth}
       ${accountId ? sql`AND account_id = ${accountId}` : sql``}
@@ -366,6 +373,7 @@ export async function analyzeSpendingPattern(params: {
   const conditions = [
     sql`user_id = ${userId}`,
     sql`deleted_at IS NULL`,
+    sql`is_system = false`,
     sql`type = 'expense'`,
   ];
 

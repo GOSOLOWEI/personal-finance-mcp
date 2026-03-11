@@ -1,6 +1,6 @@
 import { db } from '../db/client.js';
 import { accounts, transactions } from '../db/schema.js';
-import { eq, and, isNull, sql, ne } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import { FinanceError } from '../utils/errors.js';
 import { writeAuditLog } from '../utils/audit.js';
 import { formatAmount } from '../utils/response.js';
@@ -219,10 +219,10 @@ export async function adjustAccountBalance(params: {
   accountId: string;
   actualBalance: number;
   note?: string;
-}): Promise<{ transactionId: string; difference: number }> {
+}): Promise<{ difference: number }> {
   const { userId, accountId, actualBalance, note } = params;
 
-  // 查询当前余额
+  // 查询账户当前余额（动态计算值）
   const result = await listAccounts({ userId, includeDeleted: false });
   const account = result.accounts.find((a) => a.account_id === accountId);
 
@@ -235,31 +235,34 @@ export async function adjustAccountBalance(params: {
     throw new FinanceError('CONFLICT', `账户余额已经是 ${actualBalance} 元，无需调整`);
   }
 
-  const type = difference > 0 ? 'income' : 'expense';
-  const amount = Math.abs(difference);
+  // 直接更新 initial_balance，使动态余额等于目标值
+  // 新 initial_balance = 旧 initial_balance + 差值
+  const [existing] = await db
+    .select({ initialBalance: accounts.initialBalance })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
 
-  const [tx] = await db
-    .insert(transactions)
-    .values({
-      userId,
-      type,
-      amount: String(amount),
-      accountId,
-      note: note ?? `余额校正：调整至 ${actualBalance} 元`,
-      isSystem: true,
-    })
-    .returning({ id: transactions.id });
+  const newInitialBalance = parseFloat(
+    (parseFloat(existing.initialBalance) + difference).toFixed(2)
+  );
+
+  await db
+    .update(accounts)
+    .set({ initialBalance: String(newInitialBalance), updatedAt: new Date() })
+    .where(eq(accounts.id, accountId));
 
   await writeAuditLog({
     userId,
-    action: 'create',
-    resourceType: 'transaction',
-    resourceId: tx.id,
+    action: 'update',
+    resourceType: 'account',
+    resourceId: accountId,
     changes: {
-      after: { type: 'balance_adjustment', difference, actualBalance },
+      before: { balance: account.balance, initial_balance: parseFloat(existing.initialBalance) },
+      after: { balance: actualBalance, initial_balance: newInitialBalance, note: note ?? `余额校正：调整至 ${actualBalance} 元` },
     },
     toolName: 'adjust_account_balance',
   });
 
-  return { transactionId: tx.id, difference };
+  return { difference };
 }

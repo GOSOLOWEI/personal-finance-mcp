@@ -28,8 +28,7 @@ export async function adjustAccountBalanceTool(input: AdjustAccountBalanceInput)
 
     return {
       success: true,
-      transaction_id: result.transactionId,
-      message: `账户余额已校正至 ${input.actual_balance.toFixed(2)} 元（${diffText}），已生成余额调整记录`,
+      message: `账户余额已校正至 ${input.actual_balance.toFixed(2)} 元（${diffText}）`,
     };
   } catch (err) {
     return handleError(err);
