@@ -51,6 +51,25 @@ export function formatAmount(value: string | null | undefined): number {
 }
 
 /**
+ * 将用户输入的时间字符串标准化为 "YYYY-MM-DD HH:mm:ss" 格式
+ * 支持输入：
+ *   "YYYY-MM-DD"          → "YYYY-MM-DD 00:00:00"
+ *   "YYYY-MM-DD HH:mm"    → "YYYY-MM-DD HH:mm:00"
+ *   "YYYY-MM-DD HH:mm:ss" → 原样返回
+ */
+export function normalizeOccurredAt(value: string | undefined | null): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  // 已是完整格式
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
+  // 仅有日期
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return `${trimmed} 00:00:00`;
+  // 日期 + 小时分钟
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`;
+  return trimmed;
+}
+
+/**
  * 将 UTC 时间转换为北京时间字符串（Asia/Shanghai，格式：YYYY-MM-DD HH:mm:ss）
  */
 export function formatDateTimeCST(value: Date | string | null | undefined): string | null {

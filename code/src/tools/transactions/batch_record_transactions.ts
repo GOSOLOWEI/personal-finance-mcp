@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { recordTransaction, inferSuggestedTags } from '../../services/transactions.service.js';
 import { getDefaultUserId } from '../../utils/user.js';
 import { handleError } from '../../utils/errors.js';
+import { normalizeOccurredAt } from '../../utils/response.js';
 
 const transactionItemSchema = z.object({
   type: z.enum(['income', 'expense', 'transfer']),
@@ -10,7 +11,10 @@ const transactionItemSchema = z.object({
   account_id: z.string().uuid().optional(),
   occurred_at: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
+    .regex(
+      /^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/,
+      '时间格式错误，支持：YYYY-MM-DD 或 YYYY-MM-DD HH:mm 或 YYYY-MM-DD HH:mm:ss'
+    )
     .optional(),
   note: z.string().max(500).optional(),
   tag_labels: z
@@ -53,12 +57,12 @@ export async function batchRecordTransactionsTool(input: BatchRecordTransactions
 
     for (const tx of input.transactions) {
       const accountId = tx.account_id ?? input.account_id;
-      const occurredAt = tx.occurred_at ?? `${defaultDate} 12:00:00`;
+      const occurredAt = normalizeOccurredAt(tx.occurred_at) ?? `${defaultDate} 12:00:00`;
 
       if (input.dry_run) {
         // 仅预览，返回解析结果
         const suggestedTags = tx.type === 'expense'
-          ? inferSuggestedTags({ amount: tx.amount, note: tx.note })
+          ? inferSuggestedTags({ amount: tx.amount })
           : undefined;
 
         results.push({

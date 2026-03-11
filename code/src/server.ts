@@ -406,12 +406,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const parsed = tool.schema.safeParse(args ?? {});
     if (!parsed.success) {
-      const flattened = parsed.error.flatten();
-      const fieldMessages = Object.entries(flattened.fieldErrors)
-        .map(([field, msgs]) => `「${field}」${(msgs as string[]).join('；')}`)
-        .join('，');
-      const formMessages = flattened.formErrors.length > 0 ? flattened.formErrors.join('；') : '';
-      const detailMessage = [fieldMessages, formMessages].filter(Boolean).join('；');
+      // 使用 issues 展示完整字段路径（含数组下标），比 flatten() 更具可读性
+      const issueMessages = parsed.error.issues.map((issue) => {
+        const path = issue.path.length > 0
+          ? issue.path.map((p) => (typeof p === 'number' ? `[${p}]` : p)).join('.')
+          : '(root)';
+        return `「${path}」${issue.message}`;
+      });
+      const detailMessage = issueMessages.join('；');
 
       return {
         content: [
@@ -422,7 +424,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               error: {
                 code: 'VALIDATION_ERROR',
                 message: `参数校验失败：${detailMessage}`,
-                details: flattened,
+                details: parsed.error.issues.map((i) => ({
+                  path: i.path,
+                  message: i.message,
+                  code: i.code,
+                })),
               },
             }),
           },
@@ -489,27 +495,41 @@ function zodFieldToJsonSchema(field: z.ZodTypeAny): Record<string, unknown> {
     return { type: 'string', enum: field.options, ...(description && { description }) };
   }
   if (field instanceof z.ZodOptional) {
-    return zodFieldToJsonSchema(field.unwrap());
+    const inner = zodFieldToJsonSchema(field.unwrap());
+    return description ? { ...inner, description } : inner;
   }
   if (field instanceof z.ZodDefault) {
-    return zodFieldToJsonSchema(field._def.innerType);
+    const inner = zodFieldToJsonSchema(field._def.innerType);
+    return description ? { ...inner, description } : inner;
+  }
+  if (field instanceof z.ZodNullable) {
+    const inner = zodFieldToJsonSchema(field.unwrap());
+    return description ? { ...inner, description } : inner;
   }
   if (field instanceof z.ZodArray) {
     return {
       type: 'array',
       items: zodFieldToJsonSchema(field.element),
+      ...(field._def.minLength && { minItems: field._def.minLength.value }),
+      ...(field._def.maxLength && { maxItems: field._def.maxLength.value }),
       ...(description && { description }),
     };
   }
   if (field instanceof z.ZodObject) {
+    const properties = zodToJsonSchema(field);
+    const required = getRequiredFields(field);
     return {
       type: 'object',
-      properties: zodToJsonSchema(field),
+      properties,
+      ...(required.length > 0 && { required }),
       ...(description && { description }),
     };
   }
-  if (field instanceof z.ZodNullable) {
-    return zodFieldToJsonSchema(field.unwrap());
+  // ZodEffects 包含 z.coerce.* / z.transform / z.refine
+  // 通过 _def.schema（ZodEffects 的内部类型）回退处理
+  if (field instanceof z.ZodEffects) {
+    const inner = zodFieldToJsonSchema(field._def.schema as z.ZodTypeAny);
+    return description ? { ...inner, description } : inner;
   }
 
   return { type: 'string', ...(description && { description }) };

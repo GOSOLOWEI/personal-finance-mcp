@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { recordTransaction } from '../../services/transactions.service.js';
 import { getDefaultUserId } from '../../utils/user.js';
 import { handleError } from '../../utils/errors.js';
+import { normalizeOccurredAt } from '../../utils/response.js';
 
 // 仅包含 AI 负责的情境字段；scale/consumption_type/purpose 由服务端根据金额和分类自动计算
 const tagLabelsSchema = z.object({
@@ -24,9 +25,12 @@ export const recordTransactionSchema = z.object({
   to_account_id: z.string().uuid().optional().describe('目标账户（仅 transfer 类型需要）'),
   occurred_at: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
+    .regex(
+      /^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/,
+      '时间格式错误，支持：YYYY-MM-DD 或 YYYY-MM-DD HH:mm 或 YYYY-MM-DD HH:mm:ss'
+    )
     .optional()
-    .describe('交易时间，格式 "YYYY-MM-DD HH:mm:ss"，默认当前时间'),
+    .describe('交易时间，支持 "YYYY-MM-DD"、"YYYY-MM-DD HH:mm" 或 "YYYY-MM-DD HH:mm:ss"，默认当前时间'),
   note: z.string().max(500).optional().describe('备注说明，最长 500 字符'),
   tag_labels: tagLabelsSchema.optional().describe('情境标签（仅 expense 类型），只填 method 和 behavior；scale（仅大额时自动打标）/consumption_type/purpose 由服务端自动计算，禁止传入'),
 });
@@ -43,7 +47,7 @@ export async function recordTransactionTool(input: RecordTransactionInput) {
       categoryId: input.category_id,
       accountId: input.account_id,
       toAccountId: input.to_account_id,
-      occurredAt: input.occurred_at,
+      occurredAt: normalizeOccurredAt(input.occurred_at),
       note: input.note,
       tagLabels: input.tag_labels,
     });
