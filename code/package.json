@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/server.ts",
+    "dev:tsnode": "node --loader ts-node/esm src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
@@ -29,6 +30,7 @@
     "drizzle-kit": "^0.30.0",
     "eslint": "^9.0.0",
     "prettier": "^3.4.0",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
